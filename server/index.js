@@ -8,6 +8,7 @@ import goalsRouter     from "./routes/goals.js";
 import blacklistRouter from "./routes/blacklist.js";
 import drilldownRouter from "./routes/drilldown.js";
 import settingsRouter from "./routes/settings.js";
+import userGoalRouter  from "./routes/user-goal.js";
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
@@ -20,6 +21,7 @@ app.use("/api/goals",     goalsRouter);
 app.use("/api/blacklist", blacklistRouter);
 app.use("/drilldown",     drilldownRouter);
 app.use("/settings", settingsRouter);
+app.use("/api/user-goal", userGoalRouter);
 // Weekly report HTML page
 app.get("/report", (_req, res) => res.send(buildReportPage()));
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -66,6 +68,15 @@ function buildReportPage() {
     .cat-bar-wrap{height:3px;background:#2d3748;border-radius:99px;margin-top:10px;overflow:hidden}
     .cat-bar{height:100%;border-radius:99px}
     .hint{font-size:11px;color:#475569;margin-top:-10px;text-align:right}
+    .prod-breakdown{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px}
+    .prod-item{display:flex;align-items:center;gap:10px;background:#141820;border-radius:10px;padding:10px 12px}
+    .prod-dot{width:10px;height:10px;border-radius:50%}
+    .prod-min{font-weight:800}
+    .prod-bar{height:10px;background:#2d3748;border-radius:99px;overflow:hidden;display:flex}
+    .prod-bar-seg{height:100%;border-radius:99px}
+    .prod-bar-seg--productive{background:#4ade80}
+    .prod-bar-seg--neutral{background:#facc15}
+    .prod-bar-seg--distracting{background:#f87171}
     table{width:100%;border-collapse:collapse;font-size:13px}
     th{text-align:left;color:#64748b;font-weight:500;padding:6px 8px;border-bottom:1px solid #2d3748}
     td{padding:8px;border-bottom:1px solid #141820}
@@ -100,6 +111,32 @@ function buildReportPage() {
   <div class="card">
     <p class="card__title">Daily focus score</p>
     <div class="chart-wrap"><canvas id="focusChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <p class="card__title">Productivity Breakdown</p>
+    <div class="prod-breakdown">
+      <div class="prod-item">
+        <span class="prod-dot" style="background:#4ade80"></span>
+        <span>Productive</span>
+        <span class="prod-min" id="prod-productive">--</span>
+      </div>
+      <div class="prod-item">
+        <span class="prod-dot" style="background:#facc15"></span>
+        <span>Neutral</span>
+        <span class="prod-min" id="prod-neutral">--</span>
+      </div>
+      <div class="prod-item">
+        <span class="prod-dot" style="background:#f87171"></span>
+        <span>Distracting</span>
+        <span class="prod-min" id="prod-distracting">--</span>
+      </div>
+    </div>
+    <div class="prod-bar" aria-label="Productivity breakdown bar">
+      <div id="prod-bar-productive" class="prod-bar-seg prod-bar-seg--productive" style="width:0%"></div>
+      <div id="prod-bar-neutral" class="prod-bar-seg prod-bar-seg--neutral" style="width:0%"></div>
+      <div id="prod-bar-distracting" class="prod-bar-seg prod-bar-seg--distracting" style="width:0%"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -149,6 +186,29 @@ async function load() {
   document.getElementById("total-hrs").textContent   = Math.round((data.totalMinutes||0)/60) + "h";
   document.getElementById("active-days").textContent = data.activeDays ?? "--";
 
+  const breakdown = data.productivityBreakdown || {};
+  document.getElementById("prod-productive").textContent = fmtMins(breakdown.productiveMinutes || 0);
+  document.getElementById("prod-neutral").textContent      = fmtMins(breakdown.neutralMinutes || 0);
+  document.getElementById("prod-distracting").textContent  = fmtMins(breakdown.distractingMinutes || 0);
+
+  const totalBreakdown =
+    (breakdown.productiveMinutes || 0) +
+    (breakdown.neutralMinutes || 0) +
+    (breakdown.distractingMinutes || 0);
+  const prodPct = totalBreakdown ? (breakdown.productiveMinutes / totalBreakdown) * 100 : 0;
+  const neutPct = totalBreakdown ? (breakdown.neutralMinutes / totalBreakdown) * 100 : 0;
+  const distPct = totalBreakdown ? (breakdown.distractingMinutes / totalBreakdown) * 100 : 0;
+
+  document.getElementById("prod-bar-productive").style.width  = prodPct + "%";
+  document.getElementById("prod-bar-neutral").style.width     = neutPct + "%";
+  document.getElementById("prod-bar-distracting").style.width = distPct + "%";
+
+  const COLOR_BY_LABEL = {
+    Productive: "#4ade80",
+    Neutral: "#facc15",
+    Distracting: "#f87171",
+  };
+
   // ✅ fixed
   const cats = data.categories || [];
   const max  = Math.max(...cats.map(c=>c.minutes), 1);
@@ -180,7 +240,7 @@ async function load() {
       data: {
         labels: days.map(d => d.date.slice(5)),
         datasets: [{ label:"Focus Score", data: days.map(d=>d.focusScore),
-          backgroundColor: days.map(d => d.focusScore>=70?"#6366f1":d.focusScore>=40?"#f59e0b":"#f87171"),
+          backgroundColor: days.map(d => COLOR_BY_LABEL[d.productivity?.dominantLabel] || COLOR_BY_LABEL.Neutral),
           borderRadius: 6 }]
       },
       options: {

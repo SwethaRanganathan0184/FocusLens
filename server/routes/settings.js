@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { upsertGoal, getGoals, pool } from "../models/db.js";
+import { getUserGoal } from "../services/userGoalStore.js";
 
 const router = Router();
 
@@ -15,6 +16,7 @@ router.get("/", async (req, res) => {
   const weekStart = getMonday();
   const goals = await getGoals(weekStart);
   const { rows: blacklist } = await pool.query(`SELECT domain FROM blacklist ORDER BY domain`);
+  const currentUserGoal = await getUserGoal();
 
   res.send(`<!DOCTYPE html>
 <html lang="en">
@@ -57,6 +59,22 @@ router.get("/", async (req, res) => {
     }
     .goal-input:focus { border-color: #6366f1; }
     .goal-unit { font-size: 12px; color: #475569; }
+    select.goal-select {
+      width: 100%;
+      background: #1e2330; border: 1px solid #2d3748;
+      border-radius: 8px; padding: 10px 12px;
+      color: #e2e8f0; font-size: 14px; outline: none;
+    }
+    select.goal-select:focus { border-color: #6366f1; }
+    input.goal-text {
+      width: 100%;
+      background: #1e2330; border: 1px solid #2d3748;
+      border-radius: 8px; padding: 10px 12px;
+      color: #e2e8f0; font-size: 14px; outline: none;
+      display: none;
+    }
+    input.goal-text:focus { border-color: #6366f1; }
+    .goal-custom { margin-top: 10px; }
     .btn-save {
       margin-top: 14px; width: 100%; background: #6366f1; color: #fff;
       border: none; border-radius: 8px; padding: 10px;
@@ -140,6 +158,29 @@ router.get("/", async (req, res) => {
     </form>
   </div>
 
+  <!-- Productivity Goal -->
+  <div class="card">
+    <p class="card__title">Define Your Productivity Goal</p>
+    <p class="card__subtitle">What is your primary goal?</p>
+    <div class="explain">
+      <strong>How it works:</strong> Focus score will treat categories matching your goal as productive.
+      If you don't set a goal, we use the existing default weights.
+    </div>
+    <form class="goal-grid" id="user-goal-form">
+      <label for="goal-select" style="font-size:13px;color:#cbd5e1;">What is your primary goal?</label>
+      <select id="goal-select" class="goal-select">
+        <option value="">Select...</option>
+        <option value="Student">Student</option>
+        <option value="Software Developer">Software Developer</option>
+        <option value="Content Creator">Content Creator</option>
+        <option value="Entrepreneur">Entrepreneur</option>
+        <option value="Custom">Custom</option>
+      </select>
+      <input id="goal-custom" class="goal-text goal-custom" type="text" placeholder="e.g. Content Creator" />
+      <button type="submit" class="btn-save">Save Goal</button>
+    </form>
+  </div>
+
   <!-- Blacklist -->
   <div class="card">
     <p class="card__title">Domain Blacklist</p>
@@ -170,6 +211,73 @@ router.get("/", async (req, res) => {
 
 <script>
   const weekStart = "${weekStart}";
+  const currentGoal = ${JSON.stringify(currentUserGoal || "")};
+
+  const goalSelect = document.getElementById("goal-select");
+  const goalCustom = document.getElementById("goal-custom");
+
+  function syncGoalUI() {
+    if (!currentGoal) {
+      goalSelect.value = "";
+      goalCustom.value = "";
+      goalCustom.style.display = "none";
+      return;
+    }
+
+    const presets = ["Student", "Software Developer", "Content Creator", "Entrepreneur"];
+    if (presets.includes(currentGoal)) {
+      goalSelect.value = currentGoal;
+      goalCustom.value = "";
+      goalCustom.style.display = "none";
+      return;
+    }
+
+    goalSelect.value = "Custom";
+    goalCustom.value = currentGoal;
+    goalCustom.style.display = "block";
+  }
+
+  goalSelect.addEventListener("change", () => {
+    if (goalSelect.value === "Custom") {
+      goalCustom.style.display = "block";
+    } else {
+      goalCustom.style.display = "none";
+      goalCustom.value = "";
+    }
+  });
+
+  document.getElementById("user-goal-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const selectedOption = goalSelect.value;
+    let goal = selectedOption;
+
+    if (selectedOption === "Custom") {
+      goal = goalCustom.value.trim();
+      if (!goal) {
+        showToast("Please enter your custom goal", true);
+        return;
+      }
+    }
+
+    try {
+      await fetch("/api/user-goal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal }),
+      });
+      showToast("Goal saved ✓");
+      if (selectedOption === "Custom") {
+        goalSelect.value = "Custom";
+        goalCustom.style.display = "block";
+      } else {
+        goalSelect.value = selectedOption;
+        goalCustom.style.display = "none";
+      }
+    } catch {
+      showToast("Failed to save goal", true);
+    }
+  });
 
   document.getElementById("goals-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -243,6 +351,8 @@ router.get("/", async (req, res) => {
     t.className   = "toast show" + (isError ? " error" : "");
     setTimeout(() => t.className = "toast", 2500);
   }
+
+  syncGoalUI();
 </script>
 </body>
 </html>`);
