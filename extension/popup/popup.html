@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>FocusLens</title>
+  <link rel="stylesheet" href="popup.css"/>
+</head>
+<body>
+
+  <header>
+    <span class="logo">🔍 FocusLens</span>
+    <span id="today-date" class="date"></span>
+  </header>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <span class="stat-value" id="focus-score">--</span>
+      <span class="stat-label">Focus score</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="active-time">--</span>
+      <span class="stat-label">Active today</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value" id="top-category">--</span>
+      <span class="stat-label">Top category</span>
+    </div>
+  </div>
+
+  <div class="section-label">Today's breakdown</div>
+  <div id="category-list" class="cat-list">
+    <div class="empty">No activity yet today</div>
+  </div>
+
+  <div class="footer">
+    <button id="btn-report" class="btn-link">View weekly report →</button>
+    <button id="btn-settings" class="btn-settings">⚙ Settings</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "FocusLens",
+  "version": "1.0.0",
+  "description": "Silently tracks browser activity and generates a weekly productivity report.",
+  "permissions": [
+    "tabs",
+    "idle",
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  }
+}
