@@ -58,38 +58,6 @@ The AI is only called for unknowns or ambiguous titles, keeping API usage minima
 
 ---
 
-## Project Structure
-FocusLens/
-├── manifest.json                  # Chrome extension manifest (MV3)
-├── package.json                   # Node.js dependencies and scripts
-├── .env                           # Your secrets (not in repo)
-├── popup/
-│   ├── popup.html                 # Extension popup UI
-│   ├── popup.css                  # Popup styles
-│   └── popup.js                   # Popup logic — fetches today's stats
-├── background/
-│   └── service-worker.js          # Core tracker — monitors tabs, accumulates time, flushes to server
-├── content/
-│   └── content.js                 # Injected into pages — sends page title to background
-├── shared/
-│   └── categories.js              # Rule-based domain → category lookup table
-└── server/
-├── index.js                   # Express app entry point
-├── models/
-│   └── db.js                  # PostgreSQL connection + all DB queries
-├── routes/
-│   ├── activity.js            # POST /api/activity/batch
-│   ├── report.js              # GET /api/report/day, /api/report/week
-│   ├── goals.js               # GET + POST /api/goals/batch
-│   ├── blacklist.js           # GET/POST/DELETE /api/blacklist
-│   ├── drilldown.js           # GET /drilldown — drill-down HTML page
-│   └── settings.js            # GET /settings — settings HTML page
-└── services/
-├── categoriser.js         # AI categorisation logic (Groq + rule-based)
-└── reportGenerator.js     # Focus score calculation + report generation
-
----
-
 ## Prerequisites
 
 - **Node.js** v18.17+ or v20+ (v18.16 works but throws npm warnings)
